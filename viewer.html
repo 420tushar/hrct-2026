@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="robots" content="noindex, nofollow">
+<title>HRCT Viewer</title>
+<style>
+:root{--bg:#0b0d10;--panel:#14181e;--line:#252c35;--text:#e6e9ee;--muted:#8b95a3;--accent:#4fa3ff;--accent2:#1e3a5c;--ov:#e9d27a}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--text);font:14px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;display:flex;flex-direction:column;overflow:hidden}
+.top{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--line);background:var(--panel);min-height:48px}
+.top a{color:var(--accent);text-decoration:none;white-space:nowrap;font-size:14px}
+.top .pt{color:var(--muted);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
+.top .pt b{color:var(--text)}
+select{background:#1c232c;color:var(--text);border:1px solid var(--line);border-radius:7px;padding:6px 8px;font-size:14px;max-width:100%}
+#seriesSel{display:none}
+.wrap{flex:1;display:flex;min-height:0}
+aside{width:210px;border-right:1px solid var(--line);overflow-y:auto;background:var(--panel);padding:8px}
+aside h3{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin:12px 4px 6px;font-weight:600}
+.si{display:flex;gap:8px;align-items:center;padding:6px;border-radius:8px;cursor:pointer;border:1px solid transparent}
+.si:hover{background:#1b2129}
+.si.on{background:var(--accent2);border-color:#2f5d93}
+.si img{width:44px;height:44px;object-fit:cover;border-radius:4px;background:#000;flex:none}
+.si div{font-size:12.5px;line-height:1.3}
+.si small{color:var(--muted)}
+.center{flex:1;display:flex;flex-direction:column;min-width:0}
+#stage{flex:1;position:relative;background:#000;touch-action:none;overflow:hidden;cursor:grab;min-height:0}
+#stage.drag{cursor:grabbing}
+canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.ov{position:absolute;color:var(--ov);font-size:12px;line-height:1.35;text-shadow:0 0 3px #000,0 0 2px #000;pointer-events:none;white-space:nowrap}
+.tl{top:8px;left:10px}.tr{top:8px;right:10px;text-align:right}.bl{bottom:8px;left:10px}.br{bottom:8px;right:10px;text-align:right}
+.or{position:absolute;color:#fff;font-weight:600;font-size:14px;text-shadow:0 0 3px #000;pointer-events:none}
+.oL{left:8px;top:50%;transform:translateY(-50%)}.oR{right:8px;top:50%;transform:translateY(-50%)}
+.oT{top:6px;left:50%;transform:translateX(-50%)}.oB{bottom:6px;left:50%;transform:translateX(-50%)}
+#load{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(20,24,30,.85);padding:8px 14px;border-radius:8px;font-size:13px;display:none;pointer-events:none}
+#hint{position:absolute;left:50%;bottom:44px;transform:translateX(-50%);background:rgba(20,24,30,.9);padding:7px 12px;border-radius:8px;font-size:12.5px;color:var(--muted);pointer-events:none;transition:opacity .6s;text-align:center;max-width:92%}
+.bar{border-top:1px solid var(--line);background:var(--panel);padding:8px 10px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.row{display:flex;align-items:center;gap:6px}
+.slice{flex:1 1 320px;min-width:220px}
+.slice input{flex:1;min-width:80px}
+#count{font-variant-numeric:tabular-nums;color:var(--muted);font-size:13px;min-width:62px;text-align:center}
+button{background:#1c232c;color:var(--text);border:1px solid var(--line);border-radius:7px;padding:6px 10px;font-size:13.5px;cursor:pointer;line-height:1.2;white-space:nowrap}
+button:hover{border-color:var(--accent)}
+button.on{background:var(--accent2);border-color:#2f5d93}
+.seg button{border-radius:0;margin-left:-1px}.seg button:first-child{border-radius:7px 0 0 7px;margin-left:0}.seg button:last-child{border-radius:0 7px 7px 0}
+input[type=range]{accent-color:var(--accent);height:24px}
+#adj{display:none;gap:12px;flex-wrap:wrap;align-items:center;width:100%;padding-top:4px;color:var(--muted);font-size:13px}
+#adj.show{display:flex}
+#adj label{display:flex;align-items:center;gap:6px}
+#adj input{width:130px}
+a.btn{color:var(--text);text-decoration:none;background:#1c232c;border:1px solid var(--line);border-radius:7px;padding:6px 10px;font-size:13.5px;white-space:nowrap}
+@media (max-width:860px){
+  aside{display:none}
+  #seriesSel{display:block;flex:1;min-width:0}
+  .top .pt{display:none}
+  .ov{font-size:10.5px}
+  .hide-sm{display:none}
+  .bar{gap:6px;padding:6px 8px}
+  button,a.btn{padding:6px 8px;font-size:13px}
+}
+</style>
+</head>
+<body>
+<div class="top">
+  <a href="index.html">&larr; All series</a>
+  <div class="pt" id="pt"></div>
+  <select id="seriesSel" aria-label="Series"></select>
+</div>
+<div class="wrap">
+  <aside id="side"></aside>
+  <div class="center">
+    <div id="stage">
+      <canvas id="cv"></canvas>
+      <div class="ov tl" id="ovTL"></div><div class="ov tr" id="ovTR"></div>
+      <div class="ov bl" id="ovBL"></div><div class="ov br" id="ovBR"></div>
+      <div class="or oL" id="oL"></div><div class="or oR" id="oR"></div><div class="or oT" id="oT"></div><div class="or oB" id="oB"></div>
+      <div id="load"></div>
+      <div id="hint"></div>
+    </div>
+    <div class="bar">
+      <div class="row slice">
+        <button id="prev" aria-label="Previous slice">&#9650;</button>
+        <input type="range" id="slider" min="1" max="1" value="1" aria-label="Slice">
+        <button id="next" aria-label="Next slice">&#9660;</button>
+        <span id="count">1 / 1</span>
+        <button id="play" aria-label="Play">&#9654;</button>
+      </div>
+      <div class="row seg" id="winSeg"></div>
+      <div class="row">
+        <button id="zOut" aria-label="Zoom out">&minus;</button>
+        <button id="zFit">Fit</button>
+        <button id="zIn" aria-label="Zoom in">+</button>
+      </div>
+      <div class="row">
+        <button id="adjBtn">Adjust</button>
+        <button id="inv">Invert</button>
+        <a class="btn" id="dl" href="#" download>DICOM .zip</a>
+      </div>
+      <div id="adj">
+        <label>Brightness <input type="range" id="bri" min="40" max="220" value="100"></label>
+        <label>Contrast <input type="range" id="con" min="40" max="300" value="100"></label>
+        <button id="adjReset">Reset</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="common.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const cv = $("cv"), ctx = cv.getContext("2d"), stage = $("stage");
+let M, S = null, W = null, idx = 1, zoom = 1, panX = 0, panY = 0, inverted = false;
+let playing = null, gen = 0, lastImg = null;
+const cache = new Map();
+const isTouch = matchMedia("(pointer: coarse)").matches;
+
+function key(s, w, i) { return `${s.id}/${w}/${i}`; }
+function getImg(s, w, i) {
+  const k = key(s, w, i);
+  let im = cache.get(k);
+  if (!im) { im = new Image(); im.decoding = "async"; im.src = imgUrl(s, w, i); cache.set(k, im); }
+  return im;
+}
+
+// ---------- loading (current slice first, then outward) ----------
+function preload() {
+  const g = ++gen, s = S, w = W, n = s.n;
+  // keep only the current series/window in memory (phones run out of RAM otherwise); the browser cache keeps re-opens fast
+  const keep = `${s.id}/${w}/`;
+  for (const k of [...cache.keys()]) if (!k.startsWith(keep)) cache.delete(k);
+  const order = [];
+  for (let d = 0; d < n; d++) { const a = idx + d, b = idx - d; if (a <= n) order.push(a); if (d && b >= 1) order.push(b); }
+  let done = 0, p = 0;
+  const lbl = $("load");
+  const upd = () => {
+    if (g !== gen) return;
+    if (done >= n) { lbl.style.display = "none"; return; }
+    lbl.style.display = "block"; lbl.textContent = `Loading ${done} / ${n}`;
+  };
+  const next = () => {
+    if (g !== gen || p >= order.length) return;
+    const i = order[p++], im = getImg(s, w, i);
+    const fin = () => { done++; upd(); if (i === idx && g === gen) draw(); next(); };
+    if (im.complete && im.naturalWidth) { done++; upd(); next(); }
+    else { im.addEventListener("load", fin, { once: true }); im.addEventListener("error", fin, { once: true }); }
+  };
+  upd();
+  for (let k = 0; k < 6; k++) next();
+}
+
+// ---------- drawing ----------
+function resize() {
+  const r = stage.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  cv.width = Math.max(1, Math.round(r.width * dpr)); cv.height = Math.max(1, Math.round(r.height * dpr));
+  draw();
+}
+function draw() {
+  if (!S) return;
+  const im = getImg(S, W, idx);
+  const ready = im.complete && im.naturalWidth;
+  const src = ready ? im : lastImg;
+  if (ready) lastImg = im;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = "#000"; ctx.fillRect(0, 0, cv.width, cv.height);
+  if (src) {
+    const dpr = window.devicePixelRatio || 1, iw = src.naturalWidth, ih = src.naturalHeight;
+    const fit = Math.min(cv.width / iw, cv.height / ih) * 0.98, sc = fit * zoom;
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
+    ctx.setTransform(sc, 0, 0, sc, cv.width / 2 + panX * dpr - iw * sc / 2, cv.height / 2 + panY * dpr - ih * sc / 2);
+    ctx.drawImage(src, 0, 0);
+  }
+  overlay();
+}
+function overlay() {
+  const st = M.study, inf = seriesInfo(S);
+  $("count").textContent = `${idx} / ${S.n}`;
+  $("slider").value = idx;
+  $("ovTL").innerHTML = `${st.name}<br>ID ${st.pid}<br>${st.sex} ${fmtAge(st.age)}<span class="hide-sm"><br>${fmtDate(st.date)} ${fmtTime(st.time)}</span>`;
+  $("ovTR").innerHTML = `${inf.phase === "Scout" ? "Scout" : inf.phase + " · " + inf.plane}<br><span class="hide-sm">${S.desc}<br></span>Series ${S.num}`;
+  const loc = /Axial/.test(inf.plane) ? `<br>Loc ${S.locs[idx - 1].toFixed(1)} mm` : "";
+  $("ovBL").innerHTML = `Im ${idx} / ${S.n}${loc}${S.n > 1 ? `<br>${S.thick} mm` : ""}`;
+  $("ovBR").innerHTML = `${WIN_LABEL[W]}${WIN_DETAIL[W] ? "<br>" + WIN_DETAIL[W] : ""}<br>Zoom ${Math.round(zoom * 100)}%`;
+  const o = S.orient || {};
+  $("oL").textContent = o.left || ""; $("oR").textContent = o.right || ""; $("oT").textContent = o.top || ""; $("oB").textContent = o.bottom || "";
+}
+function applyFilter() {
+  const b = $("bri").value / 100, c = $("con").value / 100;
+  cv.style.filter = `brightness(${b}) contrast(${c})${inverted ? " invert(1)" : ""}`;
+}
+
+// ---------- state ----------
+function setSlice(i, fromPreload) {
+  i = Math.max(1, Math.min(S.n, i));
+  if (i === idx && !fromPreload) return;
+  idx = i; draw(); saveUrl();
+}
+function setSeries(id, keepSlice) {
+  const s = M.series.find(x => x.id === id) || M.series[0];
+  const frac = S && keepSlice ? (idx - 1) / Math.max(1, S.n - 1) : 0.5;
+  S = s; lastImg = null;
+  if (!S.windows.includes(W)) W = S.primary;
+  idx = Math.max(1, Math.min(S.n, Math.round(frac * (S.n - 1)) + 1));
+  zoom = 1; panX = panY = 0; stopPlay();
+  $("slider").max = S.n; $("slider").disabled = S.n < 2;
+  $("dl").href = `dicom/${S.id}.zip`; $("dl").textContent = `DICOM .zip (${mb(S.zip)})`;
+  document.querySelectorAll(".si").forEach(e => e.classList.toggle("on", e.dataset.id === S.id));
+  $("seriesSel").value = S.id;
+  buildWin(); preload(); draw(); saveUrl();
+}
+function setWin(w) { if (w === W) return; W = w; lastImg = null; buildWin(); preload(); draw(); saveUrl(); }
+function buildWin() {
+  const seg = $("winSeg"); seg.innerHTML = "";
+  S.windows.forEach(w => {
+    const b = document.createElement("button"); b.textContent = WIN_LABEL[w]; b.className = w === W ? "on" : "";
+    b.onclick = () => setWin(w); seg.appendChild(b);
+  });
+}
+function saveUrl() {
+  const u = new URL(location.href);
+  u.searchParams.set("s", S.id); u.searchParams.set("i", idx); u.searchParams.set("w", W);
+  history.replaceState(null, "", u);
+}
+function zoomAt(f, cx, cy) {
+  const z2 = Math.max(0.5, Math.min(12, zoom * f)), r = z2 / zoom;
+  panX = cx - (cx - panX) * r; panY = cy - (cy - panY) * r; zoom = z2; draw();
+}
+function resetView() { zoom = 1; panX = panY = 0; draw(); }
+function stopPlay() { if (playing) { clearInterval(playing); playing = null; $("play").innerHTML = "&#9654;"; $("play").classList.remove("on"); } }
+function togglePlay() {
+  if (playing) return stopPlay();
+  if (S.n < 2) return;
+  $("play").innerHTML = "&#10074;&#10074;"; $("play").classList.add("on");
+  playing = setInterval(() => setSlice(idx >= S.n ? 1 : idx + 1), 100);
+}
+
+// ---------- input ----------
+let wheelAcc = 0;
+stage.addEventListener("wheel", e => {
+  e.preventDefault();
+  const r = stage.getBoundingClientRect();
+  if (e.ctrlKey || e.metaKey) {
+    zoomAt(Math.exp(-e.deltaY * 0.01), e.clientX - r.left - r.width / 2, e.clientY - r.top - r.height / 2);
+    return;
+  }
+  const dy = e.deltaMode === 1 ? e.deltaY * 30 : e.deltaY;
+  wheelAcc += dy;
+  const step = 40;
+  if (Math.abs(wheelAcc) >= step) { const k = Math.trunc(wheelAcc / step); wheelAcc -= k * step; stopPlay(); setSlice(idx + k); }
+}, { passive: false });
+
+const ptrs = new Map();
+let pinch = null, touchAcc = 0, lastTap = 0;
+stage.addEventListener("pointerdown", e => {
+  stage.setPointerCapture(e.pointerId);
+  ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY, t: e.pointerType });
+  if (ptrs.size === 2) pinch = pinchState();
+  if (e.pointerType !== "touch") stage.classList.add("drag");
+  if (e.pointerType === "touch" && ptrs.size === 1) {
+    const now = Date.now(); if (now - lastTap < 300) resetView(); lastTap = now;
+  }
+});
+stage.addEventListener("dblclick", resetView);
+function pinchState() {
+  const [a, b] = [...ptrs.values()], r = stage.getBoundingClientRect();
+  return { d: Math.hypot(a.x - b.x, a.y - b.y), mx: (a.x + b.x) / 2 - r.left - r.width / 2, my: (a.y + b.y) / 2 - r.top - r.height / 2 };
+}
+stage.addEventListener("pointermove", e => {
+  const p = ptrs.get(e.pointerId); if (!p) return;
+  const dx = e.clientX - p.x, dy = e.clientY - p.y;
+  p.x = e.clientX; p.y = e.clientY;
+  if (ptrs.size === 2 && pinch) {
+    const n = pinchState();
+    if (pinch.d > 0) zoomAt(n.d / pinch.d, n.mx, n.my);
+    panX += n.mx - pinch.mx; panY += n.my - pinch.my; draw();
+    pinch = n; return;
+  }
+  if (ptrs.size !== 1) return;
+  if (p.t === "touch") {
+    // one finger: vertical swipe changes slice; when zoomed, horizontal drag pans
+    touchAcc += dy;
+    const step = Math.max(6, Math.min(16, stage.clientHeight / Math.max(S.n, 1)));
+    if (Math.abs(touchAcc) >= step) { const k = Math.trunc(touchAcc / step); touchAcc -= k * step; stopPlay(); setSlice(idx - k); }
+    if (zoom > 1.01) { panX += dx; draw(); }
+  } else if (e.buttons & 1) {
+    panX += dx; panY += dy; draw();
+  }
+});
+function endPtr(e) {
+  ptrs.delete(e.pointerId);
+  if (ptrs.size < 2) pinch = null;
+  if (!ptrs.size) { touchAcc = 0; stage.classList.remove("drag"); }
+}
+stage.addEventListener("pointerup", endPtr);
+stage.addEventListener("pointercancel", endPtr);
+
+document.addEventListener("keydown", e => {
+  if (e.target.tagName === "SELECT") return;
+  const k = e.key;
+  if (k === "ArrowDown" || k === "ArrowRight") { e.preventDefault(); stopPlay(); setSlice(idx + 1); }
+  else if (k === "ArrowUp" || k === "ArrowLeft") { e.preventDefault(); stopPlay(); setSlice(idx - 1); }
+  else if (k === "PageDown") { e.preventDefault(); setSlice(idx + 10); }
+  else if (k === "PageUp") { e.preventDefault(); setSlice(idx - 10); }
+  else if (k === "Home") setSlice(1);
+  else if (k === "End") setSlice(S.n);
+  else if (k === " ") { e.preventDefault(); togglePlay(); }
+  else if (k === "w" || k === "W") { const ws = S.windows; setWin(ws[(ws.indexOf(W) + 1) % ws.length]); }
+  else if (k === "i" || k === "I") $("inv").click();
+  else if (k === "r" || k === "R" || k === "0") resetView();
+  else if (k === "+" || k === "=") zoomAt(1.25, 0, 0);
+  else if (k === "-") zoomAt(0.8, 0, 0);
+});
+
+$("slider").addEventListener("input", e => { stopPlay(); setSlice(+e.target.value); });
+$("prev").onclick = () => { stopPlay(); setSlice(idx - 1); };
+$("next").onclick = () => { stopPlay(); setSlice(idx + 1); };
+$("play").onclick = togglePlay;
+$("zIn").onclick = () => zoomAt(1.25, 0, 0);
+$("zOut").onclick = () => zoomAt(0.8, 0, 0);
+$("zFit").onclick = resetView;
+$("inv").onclick = () => { inverted = !inverted; $("inv").classList.toggle("on", inverted); applyFilter(); };
+$("adjBtn").onclick = () => { $("adj").classList.toggle("show"); $("adjBtn").classList.toggle("on"); resize(); };
+$("bri").oninput = $("con").oninput = applyFilter;
+$("adjReset").onclick = () => { $("bri").value = 100; $("con").value = 100; applyFilter(); };
+$("seriesSel").onchange = e => setSeries(e.target.value, true);
+new ResizeObserver(resize).observe(stage);
+
+// ---------- init ----------
+fetch("manifest.json").then(r => r.json()).then(m => {
+  M = m;
+  const st = m.study;
+  $("pt").innerHTML = `<b>${st.name}</b> · ID ${st.pid} · ${st.sex} ${fmtAge(st.age)} · HRCT Chest · ${fmtDate(st.date)}`;
+  document.title = `HRCT Chest · ${st.name}`;
+  const side = $("side"), sel = $("seriesSel");
+  [["inspiration", "Inspiration"], ["expiration", "Expiration"], ["scout", "Scout"]].forEach(([g, label]) => {
+    const list = m.series.filter(s => seriesInfo(s).group === g);
+    if (!list.length) return;
+    const h = document.createElement("h3"); h.textContent = label; side.appendChild(h);
+    const og = document.createElement("optgroup"); og.label = label; sel.appendChild(og);
+    list.forEach(s => {
+      const inf = seriesInfo(s);
+      const d = document.createElement("div"); d.className = "si"; d.dataset.id = s.id;
+      d.innerHTML = `<img src="poster/${s.id}.jpg" alt="" loading="lazy"><div>${inf.title}<br><small>${s.n} image${s.n > 1 ? "s" : ""}</small></div>`;
+      d.onclick = () => setSeries(s.id, true);
+      side.appendChild(d);
+      const o = document.createElement("option"); o.value = s.id; o.textContent = `${label === "Scout" ? "Scout" : label + " · " + inf.title} (${s.n})`;
+      og.appendChild(o);
+    });
+  });
+  const q = new URLSearchParams(location.search);
+  const sid = q.get("s") || (m.series.find(s => s.id === "s04") ? "s04" : m.series[0].id);
+  const s0 = m.series.find(s => s.id === sid) || m.series[0];
+  W = s0.windows.includes(q.get("w")) ? q.get("w") : s0.primary;
+  setSeries(s0.id, false);
+  if (q.get("i")) setSlice(parseInt(q.get("i"), 10) || idx, true);
+  applyFilter(); resize();
+  const hint = $("hint");
+  hint.textContent = isTouch ? "Swipe up/down: change slice · Pinch: zoom · Double-tap: reset"
+                             : "Scroll: change slice · Drag: move · Ctrl+scroll: zoom · W: switch window";
+  setTimeout(() => hint.style.opacity = 0, 5000);
+});
+</script>
+</body>
+</html>

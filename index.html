@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>HRCT Chest</title>
+<style>
+:root{--bg:#0d1014;--panel:#161b22;--line:#262d36;--text:#e6e9ee;--muted:#8b95a3;--accent:#4fa3ff;--accent2:#1e3a5c}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+header{padding:22px 16px 14px;border-bottom:1px solid var(--line);max-width:1200px;margin:0 auto}
+h1{margin:0 0 4px;font-size:22px;font-weight:650;letter-spacing:.2px}
+.pt{color:var(--muted);font-size:14px}
+.pt b{color:var(--text);font-weight:600}
+.top-acts{margin-top:14px;display:flex;flex-wrap:wrap;gap:8px}
+main{max-width:1200px;margin:0 auto;padding:6px 16px 40px}
+h2{font-size:15px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin:26px 0 10px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden;display:flex;flex-direction:column}
+.media{background:#000;aspect-ratio:1/1;display:flex;align-items:center;justify-content:center}
+.media video,.media img{width:100%;height:100%;object-fit:contain;display:block}
+.meta{padding:10px 12px 12px;display:flex;flex-direction:column;gap:6px;flex:1}
+.meta b{font-size:15px}
+.v{color:var(--muted);font-size:13px}
+.acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:auto;padding-top:4px}
+.btn{display:inline-block;padding:7px 11px;border-radius:7px;border:1px solid var(--line);color:var(--text);text-decoration:none;font-size:13px;background:#1c232c;white-space:nowrap}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent2);border-color:#2f5d93}
+.note{color:var(--muted);font-size:13px;margin-top:30px;border-top:1px solid var(--line);padding-top:14px}
+</style>
+</head>
+<body>
+<header>
+  <h1 id="h1">HRCT Chest</h1>
+  <div class="pt" id="pt"></div>
+  <div class="top-acts">
+    <a class="btn primary" id="openViewer" href="viewer.html">Open DICOM viewer</a>
+  </div>
+</header>
+<main id="main"></main>
+<main><div class="note">Videos are a quick scroll-through preview of each series. Use the viewer to scroll slice by slice, switch between lung and mediastinal windows, and zoom. Original DICOM files for each series can be downloaded as .zip for review in any DICOM software.</div></main>
+<script src="common.js"></script>
+<script>
+fetch("manifest.json").then(r => r.json()).then(m => {
+  const st = m.study;
+  document.getElementById("pt").innerHTML =
+    `<b>${st.name}</b> · ID ${st.pid} · ${st.sex} · ${fmtAge(st.age)}<br>` +
+    `${fmtDate(st.date)}, ${fmtTime(st.time)} · ${st.inst} · ${st.scanner} · ${m.series.reduce((a, s) => a + s.n, 0)} images`;
+  const groups = [["inspiration", "Inspiration"], ["expiration", "Expiration"], ["scout", "Scout"]];
+  const main = document.getElementById("main");
+  groups.forEach(([g, label]) => {
+    const list = m.series.filter(s => seriesInfo(s).group === g);
+    if (!list.length) return;
+    const h = document.createElement("h2"); h.textContent = label; main.appendChild(h);
+    const grid = document.createElement("div"); grid.className = "grid"; main.appendChild(grid);
+    list.forEach(s => {
+      const inf = seriesInfo(s);
+      const c = document.createElement("div"); c.className = "card";
+      const media = s.video
+        ? `<video src="video/${s.id}.mp4" poster="poster/${s.id}.jpg" controls loop muted playsinline preload="none"></video>`
+        : `<img src="poster/${s.id}.jpg" alt="${s.desc}" loading="lazy">`;
+      c.innerHTML = `<div class="media">${media}</div>
+        <div class="meta"><b>${inf.title}</b>
+        <span class="v">${inf.kernel ? inf.kernel + " · " : ""}${s.n} image${s.n > 1 ? "s" : ""}${s.thick && s.n > 1 ? " · " + s.thick + " mm" : ""}</span>
+        <span class="v">Series ${s.num} · ${s.desc}</span>
+        <div class="acts"><a class="btn primary" href="viewer.html?s=${s.id}">Open in viewer</a>
+        <a class="btn" href="dicom/${s.id}.zip" download>DICOM .zip (${mb(s.zip)})</a></div></div>`;
+      grid.appendChild(c);
+    });
+  });
+});
+</script>
+</body>
+</html>
