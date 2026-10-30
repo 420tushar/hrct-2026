@@ -36,6 +36,7 @@ h2{font-size:15px;font-weight:600;color:var(--muted);text-transform:uppercase;le
   <div class="pt" id="pt"></div>
   <div class="top-acts">
     <a class="btn primary" id="openViewer" href="viewer.html">Open DICOM viewer</a>
+    <span id="links" style="display:contents"></span>
   </div>
 </header>
 <main id="main"></main>
@@ -44,10 +45,13 @@ h2{font-size:15px;font-weight:600;color:var(--muted);text-transform:uppercase;le
 <script>
 fetch("manifest.json").then(r => r.json()).then(m => {
   const st = m.study;
+  document.getElementById("h1").textContent = `HRCT Chest · ${fmtDate(st.date)}`;
+  document.title = `HRCT Chest ${fmtMonYear(st.date)} · ${st.name}`;
+  document.getElementById("links").innerHTML = (m.links || []).map(l => `<a class="btn" href="${l.url}">${l.label} &rarr;</a>`).join("");
   document.getElementById("pt").innerHTML =
     `<b>${st.name}</b> · ID ${st.pid} · ${st.sex} · ${fmtAge(st.age)}<br>` +
     `${fmtDate(st.date)}, ${fmtTime(st.time)} · ${st.inst} · ${st.scanner} · ${m.series.reduce((a, s) => a + s.n, 0)} images`;
-  const groups = [["inspiration", "Inspiration"], ["expiration", "Expiration"], ["scout", "Scout"]];
+  const groups = m.groups || DEFAULT_GROUPS;
   const main = document.getElementById("main");
   groups.forEach(([g, label]) => {
     const list = m.series.filter(s => seriesInfo(s).group === g);
@@ -65,10 +69,12 @@ fetch("manifest.json").then(r => r.json()).then(m => {
         <span class="v">${inf.kernel ? inf.kernel + " · " : ""}${s.n} image${s.n > 1 ? "s" : ""}${s.thick && s.n > 1 ? " · " + s.thick + " mm" : ""}</span>
         <span class="v">Series ${s.num} · ${s.desc}</span>
         <div class="acts"><a class="btn primary" href="viewer.html?s=${s.id}">Open in viewer</a>
-        <a class="btn" href="dicom/${s.id}.zip" download>DICOM .zip (${mb(s.zip)})</a></div></div>`;
+        ${zipLinks(s).map(z => `<a class="btn" href="${z.href}" download>${z.label}</a>`).join("")}</div></div>`;
+      c.id = s.id;
       grid.appendChild(c);
     });
   });
+  if (location.hash) { const el = document.getElementById(location.hash.slice(1)); if (el) el.scrollIntoView(); }
 });
 </script>
 </body>

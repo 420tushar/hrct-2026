@@ -203,7 +203,8 @@ function setSeries(id, keepSlice) {
   idx = Math.max(1, Math.min(S.n, Math.round(frac * (S.n - 1)) + 1));
   zoom = 1; panX = panY = 0; stopPlay();
   $("slider").max = S.n; $("slider").disabled = S.n < 2;
-  $("dl").href = `dicom/${S.id}.zip`; $("dl").textContent = `DICOM .zip (${mb(S.zip)})`;
+  if (S.parts) { $("dl").href = `index.html#${S.id}`; $("dl").removeAttribute("download"); $("dl").textContent = `DICOM .zip (${S.parts.length} parts)`; }
+  else { $("dl").href = `dicom/${S.id}.zip`; $("dl").setAttribute("download", ""); $("dl").textContent = `DICOM .zip (${mb(S.zip)})`; }
   document.querySelectorAll(".si").forEach(e => e.classList.toggle("on", e.dataset.id === S.id));
   $("seriesSel").value = S.id;
   buildWin(); preload(); draw(); saveUrl();
@@ -330,9 +331,9 @@ fetch("manifest.json").then(r => r.json()).then(m => {
   M = m;
   const st = m.study;
   $("pt").innerHTML = `<b>${st.name}</b> · ID ${st.pid} · ${st.sex} ${fmtAge(st.age)} · HRCT Chest · ${fmtDate(st.date)}`;
-  document.title = `HRCT Chest · ${st.name}`;
+  document.title = `HRCT ${fmtMonYear(st.date)} · ${st.name}`;
   const side = $("side"), sel = $("seriesSel");
-  [["inspiration", "Inspiration"], ["expiration", "Expiration"], ["scout", "Scout"]].forEach(([g, label]) => {
+  (m.groups || DEFAULT_GROUPS).forEach(([g, label]) => {
     const list = m.series.filter(s => seriesInfo(s).group === g);
     if (!list.length) return;
     const h = document.createElement("h3"); h.textContent = label; side.appendChild(h);
@@ -348,7 +349,7 @@ fetch("manifest.json").then(r => r.json()).then(m => {
     });
   });
   const q = new URLSearchParams(location.search);
-  const sid = q.get("s") || (m.series.find(s => s.id === "s04") ? "s04" : m.series[0].id);
+  const sid = q.get("s") || (m.series.find(s => s.id === (m.defaultSeries || "s04")) ? (m.defaultSeries || "s04") : m.series[0].id);
   const s0 = m.series.find(s => s.id === sid) || m.series[0];
   W = s0.windows.includes(q.get("w")) ? q.get("w") : s0.primary;
   setSeries(s0.id, false);
