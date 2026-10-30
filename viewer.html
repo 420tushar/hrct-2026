@@ -106,7 +106,7 @@ a.btn{color:var(--text);text-decoration:none;background:#1c232c;border:1px solid
     </div>
   </div>
 </div>
-<script src="common.js"></script>
+<script src="common.js?v=2"></script>
 <script>
 const $ = id => document.getElementById(id);
 const cv = $("cv"), ctx = cv.getContext("2d"), stage = $("stage");
@@ -327,7 +327,7 @@ $("seriesSel").onchange = e => setSeries(e.target.value, true);
 new ResizeObserver(resize).observe(stage);
 
 // ---------- init ----------
-fetch("manifest.json").then(r => r.json()).then(m => {
+fetch("manifest.json?v=2").then(r => r.json()).then(m => {
   M = m;
   const st = m.study;
   $("pt").innerHTML = `<b>${st.name}</b> · ID ${st.pid} · ${st.sex} ${fmtAge(st.age)} · HRCT Chest · ${fmtDate(st.date)}`;

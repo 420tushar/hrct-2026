@@ -41,9 +41,9 @@ h2{font-size:15px;font-weight:600;color:var(--muted);text-transform:uppercase;le
 </header>
 <main id="main"></main>
 <main><div class="note">Videos are a quick scroll-through preview of each series. Use the viewer to scroll slice by slice, switch between lung and mediastinal windows, and zoom. Original DICOM files for each series can be downloaded as .zip for review in any DICOM software.</div></main>
-<script src="common.js"></script>
+<script src="common.js?v=2"></script>
 <script>
-fetch("manifest.json").then(r => r.json()).then(m => {
+fetch("manifest.json?v=2").then(r => r.json()).then(m => {
   const st = m.study;
   document.getElementById("h1").textContent = `HRCT Chest · ${fmtDate(st.date)}`;
   document.title = `HRCT Chest ${fmtMonYear(st.date)} · ${st.name}`;
